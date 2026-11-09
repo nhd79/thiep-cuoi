@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản lý khách mời | Hải Yến & Hoàng Duy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #fff7eb; color: #1f3a25; font-family: Lora, Georgia, serif; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
+    h1 { margin: 0; font: 700 clamp(28px, 5vw, 42px)/1.2 'Playfair Display', Georgia, serif; }
+    .subtitle { color: #666; margin: 10px 0 28px; }
+    .panel { background: #fff; border: 1px solid #d8e2d5; border-radius: 16px; padding: clamp(18px, 3vw, 28px); box-shadow: 0 12px 32px rgba(31, 58, 37, .08); }
+    form { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+    label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 7px; }
+    input { width: 100%; border: 1px solid #b9cbb8; border-radius: 10px; padding: 12px 14px; color: #1f3a25; font: inherit; }
+    input:focus { outline: 3px solid #dcebd9; border-color: #1f3a25; }
+    button, .invite-link { border: 0; border-radius: 10px; padding: 12px 16px; cursor: pointer; font: 600 14px Lora, Georgia, serif; text-decoration: none; }
+    button { background: #1f3a25; color: #fff7eb; }
+    button:hover { background: #31583a; }
+    .guest-list { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 12px; }
+    .guest { display: grid; grid-template-columns: minmax(130px, 1fr) auto; gap: 16px; align-items: center; padding: 16px; border: 1px solid #e1e9df; border-radius: 12px; }
+    .guest-name { font-weight: 600; font-size: 17px; }
+    .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .invite-link { display: inline-flex; align-items: center; background: #e8f0e4; color: #1f3a25; }
+    .secondary { background: #eef3ec; color: #1f3a25; }
+    .danger { background: #fff0ed; color: #9a2e1d; }
+    .empty { color: #666; text-align: center; padding: 28px 12px 4px; }
+    .notice { min-height: 1.2em; color: #35653d; font-size: 14px; margin: 14px 0 0; }
+    .back { display: inline-block; color: #1f3a25; margin-top: 24px; }
+    @media (max-width: 600px) { main { width: min(100% - 24px, 920px); padding-top: 28px; } form, .guest { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Quản lý khách mời</h1>
+    <p class="subtitle">Tạo link thiệp riêng để lời mời hiển thị đúng tên từng khách.</p>
+    <section class="panel" aria-label="Danh sách khách mời">
+      <form id="guest-form">
+        <div>
+          <label for="guest-name">Tên khách mời</label>
+          <input id="guest-name" name="guest-name" autocomplete="name" placeholder="Ví dụ: Anh Minh và chị Lan" required maxlength="100">
+        </div>
+        <button type="submit" id="submit-button">Thêm khách</button>
+      </form>
+      <p id="notice" class="notice" aria-live="polite"></p>
+      <ul id="guest-list" class="guest-list"></ul>
+      <p id="empty-state" class="empty">Chưa có khách mời nào.</p>
+    </section>
+    <a class="back" href="index.html">← Xem thiệp gốc</a>
+  </main>
+
+  <script>
+    (function () {
+      var storageKey = 'hai-yen-hoang-duy-guests';
+      var form = document.getElementById('guest-form');
+      var input = document.getElementById('guest-name');
+      var list = document.getElementById('guest-list');
+      var emptyState = document.getElementById('empty-state');
+      var notice = document.getElementById('notice');
+      var submitButton = document.getElementById('submit-button');
+      var editingId = null;
+
+      function loadGuests() {
+        try { return JSON.parse(localStorage.getItem(storageKey)) || []; }
+        catch (error) { return []; }
+      }
+      function saveGuests(guests) {
+        localStorage.setItem(storageKey, JSON.stringify(guests));
+      }
+      function invitationUrl(name) {
+        return 'index.html?guest=' + encodeURIComponent(name);
+      }
+      function setNotice(message) {
+        notice.textContent = message;
+      }
+      function render() {
+        var guests = loadGuests();
+        list.innerHTML = '';
+        emptyState.hidden = guests.length > 0;
+        guests.forEach(function (guest) {
+          var item = document.createElement('li');
+          item.className = 'guest';
+          var name = document.createElement('span');
+          name.className = 'guest-name';
+          name.textContent = guest.name;
+          var actions = document.createElement('div');
+          actions.className = 'actions';
+          var invite = document.createElement('a');
+          invite.className = 'invite-link';
+          invite.href = invitationUrl(guest.name);
+          invite.target = '_blank';
+          invite.rel = 'noopener';
+          invite.textContent = 'Mở thiệp';
+          var copy = document.createElement('button');
+          copy.type = 'button'; copy.className = 'secondary'; copy.textContent = 'Sao chép link';
+          copy.addEventListener('click', function () {
+            navigator.clipboard.writeText(new URL(invitationUrl(guest.name), window.location.href).href)
+              .then(function () { setNotice('Đã sao chép link thiệp của ' + guest.name + '.'); })
+              .catch(function () { setNotice('Không thể sao chép tự động. Hãy mở thiệp và sao chép URL trên thanh địa chỉ.'); });
+          });
+          var edit = document.createElement('button');
+          edit.type = 'button'; edit.className = 'secondary'; edit.textContent = 'Sửa';
+          edit.addEventListener('click', function () { editingId = guest.id; input.value = guest.name; submitButton.textContent = 'Lưu thay đổi'; input.focus(); setNotice('Đang sửa tên khách mời.'); });
+          var remove = document.createElement('button');
+          remove.type = 'button'; remove.className = 'danger'; remove.textContent = 'Xóa';
+          remove.addEventListener('click', function () {
+            if (!window.confirm('Xóa khách mời "' + guest.name + '"?')) return;
+            saveGuests(loadGuests().filter(function (item) { return item.id !== guest.id; }));
+            if (editingId === guest.id) { editingId = null; form.reset(); submitButton.textContent = 'Thêm khách'; }
+            setNotice('Đã xóa khách mời.'); render();
+          });
+          actions.append(invite, copy, edit, remove); item.append(name, actions); list.appendChild(item);
+        });
+      }
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var name = input.value.trim();
+        if (!name) return;
+        var guests = loadGuests();
+        if (editingId) {
+          guests = guests.map(function (guest) { return guest.id === editingId ? { id: guest.id, name: name } : guest; });
+          setNotice('Đã cập nhật khách mời.');
+        } else {
+          guests.push({ id: Date.now().toString(36), name: name });
+          setNotice('Đã thêm khách mời.');
+        }
+        saveGuests(guests); editingId = null; form.reset(); submitButton.textContent = 'Thêm khách'; render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>
